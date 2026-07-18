@@ -1,6 +1,10 @@
 # Hardcore Fashion Store
 
+[![CI/CD Pipeline](https://github.com/mbayocharles26-netizen/Hardcore-fashion/actions/workflows/ci.yml/badge.svg)](https://github.com/mbayocharles26-netizen/Hardcore-fashion/actions/workflows/ci.yml)
+
 A full-stack e-commerce web application built with **Django REST Framework** (backend) and **HTML/CSS/JavaScript** (frontend), backed by **PostgreSQL**.
+
+> **GitHub Repository:** https://github.com/mbayocharles26-netizen/Hardcore-fashion
 
 ---
 
@@ -101,7 +105,7 @@ python manage.py runserver
 
 ## Live Deployment
 
-> **URL:** `https://<your-render-service>.onrender.com`
+> **URL:** `https://hardcore-fashion.onrender.com` *(update after Render deployment)*
 
 ---
 
