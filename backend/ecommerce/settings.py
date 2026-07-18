@@ -1,9 +1,9 @@
-from decouple import Config, RepositoryEnv
+from decouple import Config, RepositoryEnv, AutoConfig
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 ENV_PATH = BASE_DIR / '.env'
-config = Config(RepositoryEnv(str(ENV_PATH)))
+config = Config(RepositoryEnv(str(ENV_PATH))) if ENV_PATH.exists() else AutoConfig()
 
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-in-production')
 DEBUG = config('DJANGO_DEBUG', default=True, cast=bool)
