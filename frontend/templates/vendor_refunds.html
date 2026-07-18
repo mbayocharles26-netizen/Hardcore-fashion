@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% block title %}Vendor Refunds — Hardcore Fashion Store{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="/static/css/admin_panel.css" />
+{% endblock %}
+
+{% block content %}
+<div class="admin-layout">
+  <nav class="admin-sidebar">
+    <div class="sidebar-logo">🏬 Vendor</div>
+    <button class="admin-tab active" data-tab="refunds">↩️ Refunds</button>
+    <button class="admin-tab" data-tab="dashboard" onclick="window.location.href='/vendor-dashboard/'">🏠 Dashboard</button>
+    <button class="admin-tab" data-tab="profile" onclick="window.location.href='/vendor-dashboard/'">⚙️ Profile</button>
+  </nav>
+
+  <main class="admin-main">
+    <section id="tab-refunds" class="admin-view active">
+      <div class="admin-heading">
+        <h1>Refunds</h1>
+        <div style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-dark" onclick="loadVendorRefunds()">🔄 Refresh</button>
+          <select id="refund-status-filter" class="form-input" style="max-width:180px" onchange="loadVendorRefunds()">
+            <option value="">All statuses</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="processed">Processed</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="overflow-x:auto">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Order</th>
+              <th>Customer</th>
+              <th>Reason</th>
+              <th>Status</th>
+              <th>Date requested</th>
+              <th>Notes</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="vendor-refunds-table">
+            <tr><td colspan="8" style="padding:1.5rem;color:var(--muted)">Loading…</td></tr>
+          </tbody>
+        </table>
+
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Notes modal for vendor approval/rejection -->
+<div id="refund-notes-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center">
+  <div style="width:min(520px,92vw);background:#111;color:#fff;border:1px solid rgba(255,255,255,0.14);border-radius:10px;padding:1.2rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem">
+      <h3 id="refund-notes-modal-title" style="margin:0">Approve refund</h3>
+      <button class="btn btn-dark" style="padding:0.35rem 0.6rem" onclick="closeNotesModal()">✕</button>
+    </div>
+    <div style="margin-top:0.8rem">
+      <label style="display:block;color:var(--muted);font-size:0.9rem;margin-bottom:0.4rem">Vendor notes (optional)</label>
+      <textarea id="refund-notes-input" rows="4" style="width:100%;border-radius:8px;background:#0b0b0b;border:1px solid rgba(201,168,76,0.35);color:#fff;padding:0.7rem;resize:vertical"></textarea>
+    </div>
+    <div style="display:flex;gap:0.7rem;justify-content:flex-end;margin-top:1rem">
+      <button class="btn btn-dark" onclick="closeNotesModal()">Cancel</button>
+      <button class="btn btn-gold" style="padding:0.55rem 0.9rem" onclick="submitRefundAction()">Submit</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function getAccessToken() {
+    return localStorage.getItem('access_token') || localStorage.getItem('token') || '';
+  }
+
+  function escapeHtml(str) {
+    return (str ?? '').toString()
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  function statusColor(s) {
+    return { pending: '#c9a84c', approved: '#4caf50', rejected: '#f44', processed: '#4aa3ff' }[s] || '#aaa';
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? iso : d.toLocaleString();
+  }
+
+  // ── Notes modal ────────────────────────────────────────────────────────
+  let refundActionState = { id: null, action: null };
+
+  function openNotesModal(refundId, action) {
+    refundActionState = { id: refundId, action };
+    const modal = document.getElementById('refund-notes-modal');
+    document.getElementById('refund-notes-modal-title').textContent =
+      action === 'approve' ? 'Approve refund' : 'Reject refund';
+    document.getElementById('refund-notes-input').value = '';
+    modal.style.display = 'flex';
+  }
+
+  function closeNotesModal() {
+    document.getElementById('refund-notes-modal').style.display = 'none';
+  }
+
+  async function submitRefundAction() {
+    const { id, action } = refundActionState;
+    if (!id || !action) return;
+    const notes = (document.getElementById('refund-notes-input')?.value || '').trim();
+    const res = await fetch(`/api/refunds/vendor-action/${id}/`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${getAccessToken()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, notes })
+    });
+    if (!res.ok) {
+      alert('Action failed. ' + await res.text().catch(() => ''));
+      return;
+    }
+    closeNotesModal();
+    await loadVendorRefunds();
+  }
+
+  function vendorRefundAction(refundId, action) {
+    openNotesModal(refundId, action);
+  }
+
+  // ── Load refunds (single definition) ──────────────────────────────────
+  let refreshInFlight = false;
+  let refreshTimer = null;
+
+  async function loadVendorRefunds() {
+    if (refreshInFlight) return;
+    refreshInFlight = true;
+    const table = document.getElementById('vendor-refunds-table');
+    if (!table) { refreshInFlight = false; return; }
+
+    table.innerHTML = '<tr><td colspan="8" style="padding:1.5rem;color:var(--muted)">Loading…</td></tr>';
+
+    try {
+      const token = getAccessToken();
+      if (!token) {
+        table.innerHTML = '<tr><td colspan="8" style="padding:1.5rem;color:#f44">Not authenticated. Please log in.</td></tr>';
+        return;
+      }
+
+      const statusFilter = document.getElementById('refund-status-filter')?.value || '';
+      const url = new URL('/api/refunds/list/', window.location.origin);
+      if (statusFilter) url.searchParams.set('status', statusFilter);
+
+      const res = await fetch(url.toString(), { headers: { 'Authorization': `Bearer ${token}` } });
+
+      if (res.status === 401 || res.status === 403) {
+        table.innerHTML = '<tr><td colspan="8" style="padding:1.5rem;color:#f44">Session expired. Please log in again.</td></tr>';
+        return;
+      }
+      if (!res.ok) {
+        table.innerHTML = `<tr><td colspan="8" style="padding:1.5rem;color:var(--muted)">Failed to load refunds (${res.status}).</td></tr>`;
+        return;
+      }
+
+      const refunds = await res.json();
+      if (!Array.isArray(refunds) || refunds.length === 0) {
+        table.innerHTML = '<tr><td colspan="8" style="padding:1.5rem;color:var(--muted)">No refunds found.</td></tr>';
+        return;
+      }
+
+      table.innerHTML = refunds.map(r => {
+        const canAct = r.status === 'pending';
+        const actionBtn = canAct
+          ? `<div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+               <button class="btn btn-gold" style="padding:0.4rem 0.6rem" onclick="vendorRefundAction(${r.id},'approve')">Approve</button>
+               <button class="btn btn-dark" style="padding:0.4rem 0.6rem" onclick="vendorRefundAction(${r.id},'reject')">Reject</button>
+             </div>`
+          : `<span style="color:var(--muted)">—</span>`;
+        return `<tr>
+          <td>${escapeHtml(r.id)}</td>
+          <td>${escapeHtml(r.order_id)}</td>
+          <td>${escapeHtml(r.customer_name)}</td>
+          <td>${escapeHtml(r.reason)}</td>
+          <td><span style="color:${statusColor(r.status)};font-weight:700">${escapeHtml(r.status)}</span></td>
+          <td>${escapeHtml(formatDate(r.created_at))}</td>
+          <td>${escapeHtml(r.notes || r.admin_note || '')}</td>
+          <td>${actionBtn}</td>
+        </tr>`;
+      }).join('');
+    } finally {
+      refreshInFlight = false;
+    }
+  }
+
+  function startAutoRefresh() {
+    if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = setInterval(loadVendorRefunds, 60_000);
+  }
+
+  function initRefundWebSocket() {
+    const t = getAccessToken();
+    if (!t) return;
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const ws = new WebSocket(`${proto}://${location.host}/ws/vendor/notifications/?token=${encodeURIComponent(t)}`);
+    ws.onmessage = ({ data }) => {
+      try {
+        const payload = JSON.parse(data);
+        loadVendorRefunds();
+        if (payload?.title && typeof showToast === 'function') showToast(`🔔 ${payload.title}`);
+      } catch { /* ignore */ }
+    };
+    ws.onerror = () => {};
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    loadVendorRefunds();
+    startAutoRefresh();
+    initRefundWebSocket();
+  });
+</script>
+{% endblock %}
+

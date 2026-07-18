@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "@paypal/paypal-server-sdk": "^2.4.0"
+  },
+  "devDependencies": {
+    "workbox-webpack-plugin": "^7.4.1"
+  }
+}

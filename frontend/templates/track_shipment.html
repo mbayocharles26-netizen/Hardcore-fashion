@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Track Shipment - Hardcore Fashion Store{% endblock %}
+
+{% block content %}
+<div class="section" style="max-width:760px;">
+  <h2 class="section-title">Track Your Shipment</h2>
+  <div class="checkout-form-card">
+    <p class="muted" style="color:var(--muted); margin-bottom:1rem;">
+      Enter the tracking code from your order confirmation.
+    </p>
+    <form id="shipment-tracking-form" style="display:flex; gap:.75rem; flex-wrap:wrap;">
+      <input id="tracking-number" type="text" required autocomplete="off" placeholder="HFS-..." style="flex:1; min-width:220px; text-transform:uppercase;" />
+      <button id="track-button" type="submit" class="btn btn-gold">Track Shipment</button>
+    </form>
+    <p id="tracking-error" role="alert" style="display:none; color:#c0392b; margin-top:1rem;"></p>
+  </div>
+
+  <div id="tracking-result" class="summary-card" style="display:none; margin-top:1.5rem;">
+    <h3 style="margin-bottom:1rem;">Shipment Details</h3>
+    <div class="summary-row"><span>Tracking code</span><strong id="result-tracking-number"></strong></div>
+    <div class="summary-row"><span>Status</span><strong id="result-status"></strong></div>
+    <div class="summary-row"><span>Estimated arrival</span><strong id="result-arrival"></strong></div>
+    <div class="summary-row"><span>Current location</span><strong id="result-location"></strong></div>
+    <div class="summary-row"><span>Last updated</span><strong id="result-updated"></strong></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const trackingForm = document.getElementById('shipment-tracking-form');
+const trackingInput = document.getElementById('tracking-number');
+const trackingError = document.getElementById('tracking-error');
+const trackingResult = document.getElementById('tracking-result');
+
+function formatStatus(status) {
+  return String(status || 'pending').replace(/_/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase());
+}
+
+function formatDate(value, includeTime = false) {
+  if (!value) return 'Not available yet';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'Not available yet' : date.toLocaleString(undefined,
+    includeTime ? { dateStyle: 'medium', timeStyle: 'short' } : { dateStyle: 'medium' });
+}
+
+async function trackShipment(trackingNumber) {
+  trackingError.style.display = 'none';
+  trackingResult.style.display = 'none';
+  const response = await fetch(`/api/shipment/${encodeURIComponent(trackingNumber)}/track/`);
+  if (!response.ok) {
+    trackingError.textContent = response.status === 404
+      ? 'No shipment was found for that tracking code.'
+      : 'We could not retrieve shipment details. Please try again.';
+    trackingError.style.display = 'block';
+    return;
+  }
+
+  const shipment = await response.json();
+  document.getElementById('result-tracking-number').textContent = shipment.tracking_number;
+  document.getElementById('result-status').textContent = formatStatus(shipment.status);
+  document.getElementById('result-arrival').textContent = formatDate(shipment.estimated_arrival);
+  document.getElementById('result-location').textContent = shipment.current_location || 'Not available yet';
+  document.getElementById('result-updated').textContent = formatDate(shipment.updated_at, true);
+  trackingResult.style.display = 'block';
+}
+
+trackingForm.addEventListener('submit', async event => {
+  event.preventDefault();
+  const code = trackingInput.value.trim().toUpperCase();
+  if (!code) return;
+  trackingInput.value = code;
+  await trackShipment(code);
+});
+
+const requestedCode = new URLSearchParams(window.location.search).get('code');
+if (requestedCode) {
+  trackingInput.value = requestedCode.toUpperCase();
+  trackShipment(requestedCode);
+}
+</script>
+{% endblock %}

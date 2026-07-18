@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}403 Unauthorized — Hardcore Fashion Store{% endblock %}
+
+{% block content %}
+  <section class="container" style="padding:2rem 0; max-width:720px;">
+    <div style="background:#fff; border:1px solid rgba(0,0,0,.08); border-radius:12px; padding:2rem;">
+      <h1 style="margin:0 0 0.5rem; color:#6b2737;">403 Unauthorized</h1>
+      <p style="margin:0; opacity:.85;">
+        You do not have permission to access this page.
+      </p>
+      <div style="margin-top:1.25rem; display:flex; gap:0.75rem; flex-wrap:wrap;">
+        <a class="btn btn-gold" href="/">Go to Home</a>
+        <a class="btn btn-dark" href="/login/">Login</a>
+      </div>
+    </div>
+  </section>
+{% endblock %}
+

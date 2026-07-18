@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Hardcore Fashion Store — Home{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <h1>Dress <span>Hardcore</span>.<br>Live Bold.</h1>
+  <p>Premium streetwear & fashion for those who dare to stand out.</p>
+  <div class="hero-actions">
+    <a href="/products/" class="btn btn-gold">Shop Now</a>
+    <a href="/products/?category=new" class="btn btn-outline">New Arrivals</a>
+  </div>
+</section>
+
+<div class="section">
+  <h2 class="section-title">Featured Products</h2>
+  <div class="product-grid" id="featured-grid"></div>
+</div>
+
+<div class="section" style="padding-top:0">
+  <h2 class="section-title">Shop by Category</h2>
+  <div class="filters" id="category-list"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function esc(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
+async function loadFeatured() {
+  await loadWithSkeleton('featured-grid', productSkeletonCards(6), async () => {
+    const res = await fetch('/api/products/?featured=true&limit=8');
+    const data = await res.json();
+    const grid = document.getElementById('featured-grid');
+    if (!data.length) {
+      grid.innerHTML = '<div class="empty-state"><div class="icon">👕</div><h3>No products yet</h3></div>';
+      return;
+    }
+    grid.innerHTML = data.slice(0, 8).map(p => `
+      <div class="product-card" onclick="location.href='/products/${esc(p.slug)}/'">
+        ${p.image
+          ? `<img src="${esc(p.image)}" alt="${esc(p.name)}" loading="lazy" />`
+          : `<div class="product-placeholder" aria-label="${esc(p.name)}"><span>HF</span></div>`}
+        <div class="card-body">
+          <div class="card-name">${esc(p.name)}</div>
+          <div class="card-price">RWF ${parseFloat(p.price).toFixed(0)}</div>
+          <div class="card-actions">
+            <button class="btn btn-gold" onclick="event.stopPropagation();addToCart(${Number(p.id)})">Add to Cart</button>
+            <a href="/products/${esc(p.slug)}/" class="btn btn-dark">View</a>
+          </div>
+        </div>
+      </div>`).join('');
+  });
+}
+
+async function loadCategories() {
+  await loadWithSkeleton('category-list', categorySkeletonPills(4), async () => {
+    const res = await fetch('/api/categories/');
+    const data = await res.json();
+    const el = document.getElementById('category-list');
+    if (!data.length) { el.innerHTML = ''; return; }
+    el.innerHTML = data.map(c =>
+      `<a href="/products/?category=${esc(c.slug)}" class="filter-btn">${esc(c.name)}</a>`
+    ).join('');
+  });
+}
+
+loadFeatured();
+loadCategories();
+</script>
+{% endblock %}

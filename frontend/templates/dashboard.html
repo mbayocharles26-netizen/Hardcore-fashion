@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard - Hardcore Fashion Store{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'css/analytics.css' %}" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<section
+  class="analytics-page"
+  data-analytics-dashboard
+  data-trend-url="/api/analytics/sales-trend/?range=weekly&weeks=8"
+  data-top-url="/api/analytics/top-products/?metric=quantity&days=30&limit=10"
+  data-trend-label="Sales revenue"
+  data-top-label="Units sold"
+  data-top-key="quantity"
+>
+  <header class="analytics-header">
+    <div>
+      <p class="analytics-kicker">Admin analytics</p>
+      <h1>Dashboard</h1>
+      <p>Live sales and product performance, refreshed every minute.</p>
+    </div>
+    <div class="analytics-actions">
+      <span class="analytics-updated" data-analytics-updated aria-live="polite">Not refreshed yet</span>
+      <button class="btn btn-gold" type="button" data-analytics-refresh>Refresh data</button>
+    </div>
+  </header>
+
+  <p class="analytics-notice" data-analytics-notice role="status" aria-live="polite"></p>
+
+  <div class="analytics-grid">
+    <article class="analytics-card" data-analytics-card="trend">
+      <div class="analytics-card-header">
+        <div><h2>Sales Trend</h2><p>Revenue by week</p></div>
+        <span class="analytics-loading" data-analytics-loading="trend">Loading…</span>
+      </div>
+      <div class="analytics-chart"><canvas data-analytics-chart="trend"></canvas></div>
+      <p class="analytics-empty" data-analytics-empty="trend" hidden>No data available.</p>
+    </article>
+
+    <article class="analytics-card" data-analytics-card="top">
+      <div class="analytics-card-header">
+        <div><h2>Top Products</h2><p>Most units sold in the last 30 days</p></div>
+        <span class="analytics-loading" data-analytics-loading="top">Loading…</span>
+      </div>
+      <div class="analytics-chart"><canvas data-analytics-chart="top"></canvas></div>
+      <p class="analytics-empty" data-analytics-empty="top" hidden>No data available.</p>
+    </article>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'js/analytics_charts.js' %}"></script>
+{% endblock %}

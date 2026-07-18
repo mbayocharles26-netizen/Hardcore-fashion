@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_head %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:1100px;margin:0 auto;padding:20px;">
+  <h2 style="margin: 0 0 10px 0;">Analytics Dashboard</h2>
+
+  <div style="display:flex;gap:12px;flex-wrap:wrap; margin-bottom:16px;">
+    <div style="flex:1;min-width:220px;background:#111827;color:#fff;border-radius:10px;padding:14px;">
+      <div style="opacity:0.8;font-size:12px;">Total Revenue (last <span id="kpiDays">30</span> days)</div>
+      <div style="font-size:26px;font-weight:700;" id="kpiRevenue">£0.00</div>
+    </div>
+    <div style="flex:1;min-width:220px;background:#111827;color:#fff;border-radius:10px;padding:14px;">
+      <div style="opacity:0.8;font-size:12px;">Total Product Views (last <span id="kpiDays2">30</span> days)</div>
+      <div style="font-size:26px;font-weight:700;" id="kpiViews">0</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns: 1fr 1fr;gap:16px;">
+    <div style="background:#0b1220;border-radius:10px;padding:14px;">
+      <div style="color:#fff;font-weight:600;margin-bottom:8px;">Orders by Day (Revenue)</div>
+      <canvas id="ordersChart" height="120"></canvas>
+    </div>
+
+    <div style="background:#0b1220;border-radius:10px;padding:14px;">
+      <div style="color:#fff;font-weight:600;margin-bottom:8px;">Product Views by Day</div>
+      <canvas id="viewsChart" height="120"></canvas>
+    </div>
+  </div>
+
+  <div style="margin-top:16px;background:#0b1220;border-radius:10px;padding:14px;">
+    <div style="color:#fff;font-weight:600;margin-bottom:10px;">Top Products</div>
+    <table style="width:100%;color:#cbd5e1;border-collapse:collapse;">
+      <thead>
+        <tr style="text-align:left;">
+          <th style="padding:8px 0;border-bottom:1px solid #1f2937;">Product</th>
+          <th style="padding:8px 0;border-bottom:1px solid #1f2937;">Quantity</th>
+        </tr>
+      </thead>
+      <tbody id="topProductsBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+(function() {
+  const days = 30;
+  document.getElementById('kpiDays').textContent = days;
+  document.getElementById('kpiDays2').textContent = days;
+
+  fetch(`/api/analytics/dashboard-kpis/?days=${days}`)
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('kpiRevenue').textContent = '£' + (data.revenue_total ?? 0).toFixed(2);
+
+      const viewsTotal = (data.product_views_by_day || []).reduce((s,x)=>s+(x.views||0),0);
+      document.getElementById('kpiViews').textContent = viewsTotal;
+
+      const labelsOrders = (data.orders_by_day || []).map(x => x.day);
+      const revenue = (data.orders_by_day || []).map(x => x.total);
+
+      const ordersChart = new Chart(document.getElementById('ordersChart'), {
+        type: 'line',
+        data: {
+          labels: labelsOrders,
+          datasets: [{
+            label: 'Revenue',
+            data: revenue,
+            borderColor: '#f59e0b',
+            backgroundColor: 'rgba(245,158,11,0.15)',
+            tension: 0.25,
+            fill: true
+          }]
+        },
+        options: { plugins: { legend: { display: true } }, scales: { x: { ticks: { maxRotation: 0, minRotation: 0 } } } }
+      });
+
+      const labelsViews = (data.product_views_by_day || []).map(x => x.day);
+      const pv = (data.product_views_by_day || []).map(x => x.views);
+
+      new Chart(document.getElementById('viewsChart'), {
+        type: 'bar',
+        data: {
+          labels: labelsViews,
+          datasets: [{
+            label: 'Views',
+            data: pv,
+            backgroundColor: 'rgba(99,102,241,0.5)'
+          }]
+        },
+        options: { plugins: { legend: { display: true } } }
+      });
+
+      const body = document.getElementById('topProductsBody');
+      body.innerHTML = '';
+      (data.top_products || []).forEach(p => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td style="padding:8px 0;border-bottom:1px solid #1f2937;">${p.name}</td><td style="padding:8px 0;border-bottom:1px solid #1f2937;">${p.quantity}</td>`;
+        body.appendChild(tr);
+      });
+    })
+    .catch(() => {
+      const body = document.getElementById('topProductsBody');
+      body.innerHTML = '<tr><td colspan="2" style="padding:10px 0;color:#94a3b8;border-bottom:1px solid #1f2937;">Failed to load dashboard.</td></tr>';
+    });
+})();
+</script>
+{% endblock %}
+

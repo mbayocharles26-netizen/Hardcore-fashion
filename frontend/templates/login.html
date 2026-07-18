@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Login — Hardcore Fashion Store{% endblock %}
+
+{% block content %}
+<div class="form-card">
+  <h2>Welcome Back</h2>
+  <form id="login-form">
+    <div class="form-group"><label>Username or Email</label><input type="text" id="username" required placeholder="you@example.com or your_username" /></div>
+
+    <div class="form-group">
+      <label>Password</label>
+      <div class="password-field">
+        <input type="password" id="password" required placeholder="••••••••" />
+        <button type="button" class="toggle-password" data-target="password">Show</button>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-gold">Login</button>
+  </form>
+  <div class="form-footer">
+    <div>Don't have an account? <a href="/register/">Register</a></div>
+    <div><a href="/forgot-password/" style="opacity:.9">Forgot password?</a></div>
+  </div>
+</div>
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+document.getElementById('login-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = e.target.querySelector('button');
+  btn.textContent = 'Logging in…'; btn.disabled = true;
+  const res = await fetch('/api/token/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      username: document.getElementById('username').value,
+      password: document.getElementById('password').value
+    })
+  });
+  if (res.ok) {
+    const data = await res.json();
+    setAuthTokens(data);
+    showToast('Logged in!');
+    const params = new URLSearchParams(window.location.search);
+    const next = params.get('next');
+    if (next && next.startsWith('/')) {
+      setTimeout(() => { window.location.href = next; }, 800);
+      return;
+    }
+    // Check vendor status first, then platform admin. Pending vendors must not
+    // be treated as customers simply because they cannot access the dashboard yet.
+    const vendorStatusRes = await fetch('/api/vendor/status/', {
+      headers: { Authorization: `Bearer ${data.access}` }
+    });
+
+    if (vendorStatusRes.ok) {
+      const vendorStatus = await vendorStatusRes.json();
+      if (vendorStatus.is_vendor) {
+        const accountStatus = vendorStatus.status || 'pending';
+        setTimeout(() => {
+          window.location.href = accountStatus === 'approved'
+            ? '/vendor-dashboard/'
+            : `/vendor-dashboard/?status=${encodeURIComponent(accountStatus)}`;
+        }, 800);
+        return;
+      }
+    }
+
+    // Check if this user is a platform admin and redirect accordingly
+    const meRes = await fetch('/api/admin/me/', {
+      headers: { Authorization: `Bearer ${data.access}` }
+    });
+    if (meRes.ok) {
+      setTimeout(() => { window.location.href = '/admin/dashboard/'; }, 800);
+      return;
+    }
+
+    // Fallback: check is_staff / is_superuser via user-info endpoint
+    const userRes = await fetch('/api/auth/me/', {
+      headers: { Authorization: `Bearer ${data.access}` }
+    });
+    if (userRes.ok) {
+      const userInfo = await userRes.json();
+      if (userInfo.is_staff || userInfo.is_superuser) {
+        setTimeout(() => { window.location.href = '/admin/dashboard/'; }, 800);
+        return;
+      }
+    }
+    setTimeout(() => { window.location.href = '/customer-dashboard/'; }, 800);
+
+  } else {
+    showToast('Invalid credentials.');
+    btn.textContent = 'Login'; btn.disabled = false;
+  }
+});
+
+document.querySelectorAll('.toggle-password').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const target = document.getElementById(btn.dataset.target);
+    const isPassword = target.type === 'password';
+    target.type = isPassword ? 'text' : 'password';
+    btn.textContent = isPassword ? 'Hide' : 'Show';
+  });
+});
+</script>
+{% endblock %}

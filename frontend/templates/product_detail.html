@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ product.name }} — Hardcore Fashion Store{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/products.css' %}" />{% endblock %}
+
+{% block content %}
+
+<div class="detail-layout">
+
+  <!-- Left: image -->
+  <div class="detail-image-wrap">
+    {% if product.image %}
+      <img src="{{ product.image.url }}" alt="{{ product.name }}" />
+    {% else %}
+      <div class="detail-image-placeholder">👕</div>
+    {% endif %}
+  </div>
+
+  <!-- Right: info -->
+  <div class="detail-info">
+
+    <div class="detail-breadcrumb">
+      <a href="/">Home</a> /
+      <a href="/products/">Shop</a> /
+      <a href="/products/?category={{ product.category.slug }}">{{ product.category.name }}</a> /
+      <span>{{ product.name }}</span>
+    </div>
+
+    <span class="detail-category-tag">{{ product.category.name }}</span>
+
+    <h1 class="detail-name">{{ product.name }}</h1>
+
+    <div class="detail-price-row">
+      <span class="detail-price">RWF {{ product.price|floatformat:0 }}</span>
+    </div>
+
+    <div class="detail-stock-row">
+      {% if product.stock == 0 %}
+        <span class="stock-dot out"></span>
+        <span style="color:#e63946">Out of Stock</span>
+      {% elif product.stock <= 5 %}
+        <span class="stock-dot low"></span>
+        <span style="color:#f4a261">Only {{ product.stock }} left — order soon</span>
+      {% else %}
+        <span class="stock-dot in"></span>
+        <span style="color:#52b788">In Stock ({{ product.stock }} available)</span>
+      {% endif %}
+    </div>
+
+    <hr class="detail-divider" />
+
+    <p class="detail-desc">{{ product.description }}</p>
+
+    <hr class="detail-divider" />
+
+    {% if product.in_stock %}
+    <div class="detail-qty-row">
+      <span class="qty-label">Quantity</span>
+      <div class="qty-control">
+        <button type="button" onclick="changeQty(-1)">-</button>
+        <input type="number" id="qty-input" value="1" min="1" max="{{ product.stock }}" readonly />
+        <button type="button" onclick="changeQty(1)">+</button>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="detail-actions">
+      <button
+        class="btn-add-cart"
+        id="add-cart-btn"
+        onclick="handleAddToCart()"
+        {% if not product.in_stock %}disabled{% endif %}>
+        {% if product.in_stock %}Add to Cart{% else %}Out of Stock{% endif %}
+      </button>
+      <a href="/products/" class="btn btn-outline">← Back to Shop</a>
+    </div>
+
+    <div class="detail-meta">
+      <span><strong>SKU:</strong> HFS-{{ product.id|stringformat:"04d" }}</span>
+      <span><strong>Category:</strong> {{ product.category.name }}</span>
+      <span><strong>Added:</strong> {{ product.created_at|date:"N j, Y" }}</span>
+      {% if product.shipping_days %}
+      <span><strong>Ships in:</strong> {{ product.shipping_days }} day{{ product.shipping_days|pluralize }}</span>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+
+{% if related %}
+<div class="related-section">
+  <div class="section-title">You May Also Like</div>
+  <div class="related-grid">
+    {% for p in related %}
+    <div class="product-card">
+      <div class="card-image-wrap">
+        {% if p.image %}
+          <img src="{{ p.image.url }}" alt="{{ p.name }}" loading="lazy" />
+        {% else %}
+          <img src="{% static 'images/placeholder.png' %}" alt="{{ p.name }}" loading="lazy" />
+        {% endif %}
+        <div class="quick-add">
+          <button class="btn btn-gold" style="flex:1;padding:0.5rem" onclick="addToCart({{ p.id }})" {% if not p.in_stock %}disabled{% endif %}>Quick Add</button>
+        </div>
+      </div>
+      <a href="/products/{{ p.slug }}/" class="card-body" style="text-decoration:none;color:inherit">
+        <div class="card-category">{{ p.category.name }}</div>
+        <div class="card-name">{{ p.name }}</div>
+        <div class="card-footer">
+          <span class="card-price">RWF {{ p.price|floatformat:0 }}</span>
+        </div>
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const productId = {{ product.id }};
+const maxStock = {{ product.stock }};
+
+// Track product view (best-effort)
+/* try {
+    if (!productId) return;
+    const payload = { product_id: productId };
+    // Send with credentials so session cookies (if any) are included.
+    fetch('/api/analytics/product-view/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(payload)
+    }).catch(() => {});
+
+  } catch (e) {}
+
+// end */
+
+
+function changeQty(delta) {
+  const input = document.getElementById('qty-input');
+  if (!input) return;
+  const newVal = Math.min(maxStock, Math.max(1, parseInt(input.value) + delta));
+  input.value = newVal;
+}
+
+function handleAddToCart() {
+  const input = document.getElementById('qty-input');
+  const qty = input ? parseInt(input.value) : 1;
+  const btn = document.getElementById('add-cart-btn');
+  btn.textContent = 'Adding…';
+  btn.disabled = true;
+  addToCart(productId, qty);
+  setTimeout(() => {
+    btn.textContent = 'Add to Cart';
+    btn.disabled = false;
+  }, 1200);
+}
+</script>
+{% endblock %}

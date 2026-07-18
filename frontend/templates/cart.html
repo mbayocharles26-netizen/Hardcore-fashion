@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Cart — Hardcore Fashion Store{% endblock %}
+
+{% block content %}
+<div class="section">
+  <h2 class="section-title">Your Cart</h2>
+  <div id="cart-content"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function loadCart() {
+  await loadWithSkeleton('cart-content', cartSkeletonTable(3), async () => {
+    const res = await apiFetch('/cart/');
+    if (!res.ok) {
+      document.getElementById('cart-content').innerHTML = `
+        <div class="empty-state">
+          <h3>We could not load your cart</h3>
+          <a href="/products/" class="btn btn-gold" style="margin-top:1rem">Continue Shopping</a>
+        </div>`;
+      return;
+    }
+
+    const data = await res.json();
+    const items = data.items || [];
+    if (!items.length) {
+      document.getElementById('cart-content').innerHTML = `
+        <div class="empty-state">
+          <div class="icon">🛒</div>
+          <h3>Your cart is empty</h3>
+          <a href="/products/" class="btn btn-gold" style="margin-top:1rem">Shop Now</a>
+        </div>`;
+      return;
+    }
+
+    const rows = items.map(item => `
+      <tr id="row-${item.id}">
+        <td><div class="cart-item-img" aria-label="${esc(item.product_name)}">HF</div></td>
+        <td>${esc(item.product_name)}</td>
+        <td>RWF ${parseFloat(item.product_price).toFixed(0)}</td>
+        <td>${item.quantity}</td>
+        <td class="item-subtotal" data-value="${item.subtotal}">RWF ${parseFloat(item.subtotal).toFixed(0)}</td>
+        <td><button class="btn btn-dark" onclick="removeFromCart(${item.id}, document.getElementById('row-${item.id}'))">Remove</button></td>
+      </tr>`).join('');
+    const total = items.reduce((s, item) => s + parseFloat(item.subtotal), 0);
+    const checkoutAction = isLoggedIn()
+      ? '<a href="/checkout/" class="btn btn-gold" style="display:block;text-align:center;margin-top:1rem">Proceed to Checkout</a>'
+      : '<a href="/login/?next=/checkout/" class="btn btn-gold" style="display:block;text-align:center;margin-top:1rem">Log in to Checkout</a>';
+
+    document.getElementById('cart-content').innerHTML = `
+      <table class="cart-table">
+        <thead><tr><th></th><th>Product</th><th>Price</th><th>Qty</th><th>Subtotal</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="cart-summary">
+        <div class="summary-row"><span>Subtotal</span><span>RWF ${total.toFixed(0)}</span></div>
+        <div class="summary-row"><span>Shipping</span><span>Free</span></div>
+        <div class="summary-row total"><span>Total</span><span id="cart-total">RWF ${total.toFixed(0)}</span></div>
+        ${checkoutAction}
+      </div>`;
+  });
+}
+
+loadCart();
+</script>
+{% endblock %}

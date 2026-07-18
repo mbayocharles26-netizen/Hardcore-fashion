@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}Order Confirmation - Hardcore Fashion Store{% endblock %}
+
+{% block content %}
+{% if order %}
+<div class="section">
+  <h2 class="section-title">Order Confirmed</h2>
+  <div class="checkout-grid">
+    <div class="checkout-form-card">
+      <h2 style="margin-bottom:1rem;">Thank you, {{ order.customer_name }}!</h2>
+      <p class="muted" style="color:var(--muted); line-height:1.8;">Your order has been placed successfully.</p>
+      <div class="summary-card" style="margin-top:1.5rem;">
+        <div class="summary-row"><span><strong>Order ID</strong></span><strong>#{{ order.id }}</strong></div>
+        <div class="summary-row"><span>Name</span><span>{{ order.customer_name }}</span></div>
+        <div class="summary-row"><span>Email</span><span>{{ order.customer_email }}</span></div>
+        <div class="summary-row"><span>Phone</span><span>{{ order.customer_phone|default:"-" }}</span></div>
+        <div class="summary-row" style="align-items:flex-start"><span>Address</span><span>{{ order.customer_address }}</span></div>
+      </div>
+      {% if shipment %}
+      <div class="summary-card" style="margin-top:1.5rem; border:1px solid var(--gold);">
+        <h3 style="margin-bottom:.75rem;">Shipment Tracking</h3>
+        <div class="summary-row"><span>Tracking code</span><strong>{{ shipment.tracking_number }}</strong></div>
+        <div class="summary-row"><span>Status</span><strong>{{ shipment.get_status_display }}</strong></div>
+        <div class="summary-row"><span>Estimated arrival</span><strong>{{ shipment.estimated_arrival|date:"M j, Y"|default:"Not available yet" }}</strong></div>
+        <a class="btn btn-gold" style="margin-top:1rem;" href="/track-shipment/?code={{ shipment.tracking_number|urlencode }}">Track Shipment</a>
+      </div>
+      {% else %}
+      <p class="muted" style="margin-top:1.5rem; color:var(--muted);">Payment is being confirmed. Your tracking code will appear here once confirmed.</p>
+      {% endif %}
+    </div>
+    <div class="order-summary-card">
+      <h3>Purchased Items</h3>
+      <table class="cart-table" style="margin-top:.5rem;">
+        <thead><tr><th>Product</th><th>Qty</th><th>Subtotal</th></tr></thead>
+        <tbody>
+          {% for item in order_items %}
+          <tr><td>{{ item.product.name }}</td><td>{{ item.quantity }}</td><td>RWF {{ item.price|floatformat:0 }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="summary-row total" style="margin-top:1rem;"><span>Total</span><span>RWF {{ order.total_price|floatformat:0 }}</span></div>
+      <div class="empty-state" style="margin-top:1.25rem; padding:1rem; border:1px solid var(--border); border-radius:var(--radius);">
+        <h3 style="margin-top:.25rem;">Status: {{ order.status|title }}</h3>
+      </div>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="section" style="max-width:760px;">
+  <h2 class="section-title">Order Confirmation</h2>
+  <div class="checkout-form-card" id="confirmation-loading">
+    <h3>Confirming your payment</h3>
+    <p id="confirmation-message" class="muted" style="color:var(--muted);">We are retrieving your order and tracking code.</p>
+  </div>
+  <div id="confirmation-details" style="display:none;">
+    <div class="summary-card">
+      <div class="summary-row"><span><strong>Order ID</strong></span><strong id="confirmation-order-id"></strong></div>
+      <div class="summary-row"><span>Status</span><strong id="confirmation-order-status"></strong></div>
+      <div class="summary-row"><span>Total</span><strong id="confirmation-order-total"></strong></div>
+    </div>
+    <div id="confirmation-shipment" class="summary-card" style="margin-top:1.25rem; border:1px solid var(--gold); display:none;">
+      <h3 style="margin-bottom:.75rem;">Shipment Tracking</h3>
+      <div class="summary-row"><span>Tracking code</span><strong id="confirmation-tracking-code"></strong></div>
+      <div class="summary-row"><span>Status</span><strong id="confirmation-shipment-status"></strong></div>
+      <div class="summary-row"><span>Estimated arrival</span><strong id="confirmation-arrival"></strong></div>
+      <a id="confirmation-track-link" class="btn btn-gold" style="margin-top:1rem;">Track Shipment</a>
+    </div>
+    <div class="order-summary-card" style="margin-top:1.25rem;">
+      <h3>Purchased Items</h3>
+      <table class="cart-table" style="margin-top:.5rem;">
+        <thead><tr><th>Product</th><th>Qty</th><th>Subtotal</th></tr></thead>
+        <tbody id="confirmation-items"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if not order %}
+{{ order_id|json_script:"order-confirmation-id" }}
+<script>
+const confirmationOrderId = JSON.parse(document.getElementById('order-confirmation-id').textContent);
+const confirmationMessage = document.getElementById('confirmation-message');
+
+function confirmationStatus(value) {
+  return String(value || 'pending').replace(/_/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase());
+}
+
+function confirmationDate(value) {
+  if (!value) return 'Not available yet';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'Not available yet' : date.toLocaleDateString(undefined, { dateStyle: 'medium' });
+}
+
+async function loadConfirmation(attempt = 0) {
+  if (!isLoggedIn()) {
+    confirmationMessage.innerHTML = 'Please <a href="/login/">log in</a> to view this order confirmation.';
+    return;
+  }
+
+  const response = await apiFetch(`/orders/${confirmationOrderId}/`);
+  if (!response.ok) {
+    confirmationMessage.textContent = 'We could not retrieve this order. Please check that you are logged in with the account used for payment.';
+    return;
+  }
+
+  const order = await response.json();
+  document.getElementById('confirmation-order-id').textContent = `#${order.id}`;
+  document.getElementById('confirmation-order-status').textContent = confirmationStatus(order.status);
+  document.getElementById('confirmation-order-total').textContent = `RWF ${Number(order.total_price || 0).toFixed(0)}`;
+  document.getElementById('confirmation-items').innerHTML = (order.items || []).map(item =>
+    `<tr><td>${esc(item.product_name)}</td><td>${esc(item.quantity)}</td><td>RWF ${Number(item.price || 0).toFixed(0)}</td></tr>`
+  ).join('');
+  document.getElementById('confirmation-loading').style.display = 'none';
+  document.getElementById('confirmation-details').style.display = 'block';
+
+  if (order.shipment) {
+    const shipment = order.shipment;
+    document.getElementById('confirmation-tracking-code').textContent = shipment.tracking_number;
+    document.getElementById('confirmation-shipment-status').textContent = confirmationStatus(shipment.status);
+    document.getElementById('confirmation-arrival').textContent = confirmationDate(shipment.estimated_arrival);
+    document.getElementById('confirmation-track-link').href = `/track-shipment/?code=${encodeURIComponent(shipment.tracking_number)}`;
+    document.getElementById('confirmation-shipment').style.display = 'block';
+  } else if (attempt < 6) {
+    confirmationMessage.textContent = 'Payment is being confirmed. Your tracking code will appear shortly.';
+    document.getElementById('confirmation-loading').style.display = 'block';
+    setTimeout(() => loadConfirmation(attempt + 1), 5000);
+  }
+}
+
+loadConfirmation();
+</script>
+{% endif %}
+{% endblock %}

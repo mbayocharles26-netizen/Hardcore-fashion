@@ -1,0 +1,321 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}My Account — Hardcore Fashion Store{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/admin_panel.css' %}" />
+{% endblock %}
+
+{% block content %}
+<div id="customer-auth-warning" style="display:none" class="alert alert-danger" role="alert">
+  You must be logged in to access this page. <a href="/login/">Login</a>
+</div>
+
+<div id="customer-panel" class="admin-layout" style="display:none">
+  <nav class="admin-sidebar">
+    <div class="sidebar-logo">👤 My Account</div>
+    <div class="sidebar-avatar-wrap">
+      <img id="customer-sidebar-avatar" class="sidebar-avatar" src="" alt="" />
+      <span id="customer-sidebar-name" class="sidebar-avatar-name"></span>
+    </div>
+    <button class="admin-tab active" data-tab="dashboard">🏠 Dashboard</button>
+    <button class="admin-tab" data-tab="orders">📦 My Orders</button>
+    <button class="admin-tab" data-tab="refunds">↩️ Refunds</button>
+    <button class="admin-tab" data-tab="wishlist">❤️ Wishlist <span id="wishlist-badge" class="badge badge-gold" style="display:none"></span></button>
+    <button class="admin-tab" data-tab="wallet">💳 Wallet &amp; Points</button>
+    <button class="admin-tab" data-tab="notifications">🔔 Notifications</button>
+    <button class="admin-tab" data-tab="profile">⚙️ Profile</button>
+    <button class="admin-tab admin-theme-toggle" id="customer-theme-btn" onclick="toggleTheme()" style="margin-top:auto">🌙 Dark Mode</button>
+  </nav>
+
+  <main class="admin-main">
+
+    <!-- ── Dashboard ──────────────────────────────────────────────────────── -->
+    <section id="tab-dashboard" class="admin-view active">
+      <div class="admin-heading">
+        <h1 id="customer-greeting">Welcome back!</h1>
+        <span id="customer-points-badge" class="badge badge-gold"></span>
+      </div>
+
+      <div class="metric-grid" id="customer-metric-grid">
+        <div class="metric skeleton" style="min-height:100px"></div>
+        <div class="metric skeleton" style="min-height:100px"></div>
+        <div class="metric skeleton" style="min-height:100px"></div>
+        <div class="metric skeleton" style="min-height:100px"></div>
+        <div class="metric skeleton" style="min-height:100px"></div>
+      </div>
+
+      <div class="admin-grid two" style="margin-top:1.5rem">
+        <div class="admin-block">
+          <h2>Monthly Spending Trend</h2>
+          <div style="position:relative;height:220px"><canvas id="spend-trend-canvas"></canvas></div>
+        </div>
+        <div class="admin-block">
+          <h2>Recent Orders</h2>
+          <div id="recent-orders-list" style="color:var(--muted)">Loading…</div>
+        </div>
+      </div>
+
+      <div class="admin-block" style="margin-top:1rem">
+        <h2>Quick Links</h2>
+        <div class="quick-links">
+          <button class="quick-link-btn" onclick="switchTab('orders')">📦 View All Orders</button>
+          <button class="quick-link-btn" onclick="switchTab('wishlist')">❤️ My Wishlist</button>
+          <button class="quick-link-btn" onclick="switchTab('wallet')">💳 Loyalty Points</button>
+          <a class="quick-link-btn" href="/products/">🛍️ Shop Now</a>
+          <a class="quick-link-btn" href="/track-shipment/">🚚 Track Shipment</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Orders ─────────────────────────────────────────────────────────── -->
+    <section id="tab-orders" class="admin-view">
+      <div class="admin-heading">
+        <h1>My Orders</h1>
+        <select id="order-status-filter" class="form-input" style="max-width:180px" onchange="loadOrders()">
+          <option value="">All statuses</option>
+          <option value="pending">Pending</option>
+          <option value="processing">Processing</option>
+          <option value="shipped">Shipped</option>
+          <option value="delivered">Delivered</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+
+      <div id="orders-list">
+        <p style="color:var(--muted)">Loading…</p>
+      </div>
+    </section>
+
+    <!-- ── Refunds ─────────────────────────────────────────────────────────── -->
+    <section id="tab-refunds" class="admin-view">
+      <div class="admin-heading">
+        <h1>My Refunds</h1>
+        <button class="btn btn-gold" onclick="showRefundForm()">+ Request Refund</button>
+      </div>
+
+      <div id="refund-form-wrap" class="admin-block" style="display:none;margin-bottom:1rem">
+        <h2>New Refund Request</h2>
+        <form id="refund-request-form">
+          <div style="display:grid;gap:0.6rem">
+            <select id="refund-order-id" class="form-input" required>
+              <option value="">Select eligible order…</option>
+            </select>
+            <textarea id="refund-reason" class="form-input" placeholder="Reason for refund" rows="3" required></textarea>
+            <textarea id="refund-notes"  class="form-input" placeholder="Additional notes (optional)" rows="2"></textarea>
+            <div class="form-row">
+              <button type="submit" class="btn btn-gold">Submit Request</button>
+              <button type="button" class="btn btn-dark" onclick="hideRefundForm()">Cancel</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div style="overflow-x:auto">
+        <table class="admin-table">
+          <thead>
+            <tr><th>ID</th><th>Order</th><th>Reason</th><th>Status</th><th>Notes</th><th>Date</th></tr>
+          </thead>
+          <tbody id="customer-refunds-table">
+            <tr><td colspan="6" style="padding:1.5rem;color:var(--muted)">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── Wishlist ────────────────────────────────────────────────────────── -->
+    <section id="tab-wishlist" class="admin-view">
+      <div class="admin-heading">
+        <h1>Wishlist</h1>
+        <span id="wishlist-count-label" style="color:var(--muted);font-size:0.9rem"></span>
+      </div>
+      <div id="wishlist-grid" class="wishlist-grid">
+        <p style="color:var(--muted)">Loading…</p>
+      </div>
+    </section>
+
+    <!-- ── Wallet ─────────────────────────────────────────────────────────── -->
+    <section id="tab-wallet" class="admin-view">
+      <h1>Wallet &amp; Loyalty Points</h1>
+
+      <div class="metric-grid" style="margin-bottom:1.5rem">
+        <div class="metric">
+          <span>Current Balance</span>
+          <strong id="wallet-balance" style="color:var(--gold)">—</strong>
+        </div>
+        <div class="metric">
+          <span>Total Earned</span>
+          <strong id="wallet-earned">—</strong>
+        </div>
+        <div class="metric">
+          <span>Total Spent</span>
+          <strong id="wallet-spent">—</strong>
+        </div>
+      </div>
+
+      <div class="admin-block">
+        <h2>How Points Work</h2>
+        <ul class="points-info-list">
+          <li>🛍️ Earn <strong>1 point</strong> for every £1 spent</li>
+          <li>🎁 Redeem <strong>100 points = £1</strong> discount at checkout</li>
+          <li>⏰ Points never expire</li>
+        </ul>
+      </div>
+
+      <h2 style="margin-bottom:0.75rem">Transaction History</h2>
+      <div style="overflow-x:auto">
+        <table class="admin-table">
+          <thead>
+            <tr><th>Type</th><th>Points</th><th>Balance After</th><th>Note</th><th>Date</th></tr>
+          </thead>
+          <tbody id="loyalty-table">
+            <tr><td colspan="5" style="padding:1.5rem;color:var(--muted)">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── Notifications ──────────────────────────────────────────────────── -->
+    <section id="tab-notifications" class="admin-view">
+      <div class="admin-heading">
+        <h1>Notifications</h1>
+        <button class="btn btn-dark" onclick="loadNotifications()">🔄 Refresh</button>
+      </div>
+      <div id="customer-notifications-list" style="color:var(--muted)">Loading…</div>
+    </section>
+
+    <!-- ── Profile ────────────────────────────────────────────────────────── -->
+    <section id="tab-profile" class="admin-view">
+      <h1>My Profile</h1>
+
+      <div class="admin-grid two">
+
+        <!-- Personal details -->
+        <div class="admin-block">
+          <h2>Personal Details</h2>
+          <form id="profile-form" enctype="multipart/form-data">
+            <div style="display:grid;gap:0.6rem">
+              <div class="form-row">
+                <input id="prof-first-name" class="form-input" placeholder="First name" />
+                <input id="prof-last-name"  class="form-input" placeholder="Last name" />
+              </div>
+              <input id="prof-phone" class="form-input" placeholder="Phone number" />
+              <div>
+                <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:0.3rem">Profile picture</label>
+                <div class="avatar-upload-row">
+                  <img id="prof-avatar-preview" class="avatar-preview-lg" src="" alt="" style="display:none" />
+                  <div style="flex:1">
+                    <input id="prof-avatar" type="file" accept="image/*" class="form-input" />
+                    <button type="button" class="btn btn-dark" style="margin-top:0.4rem;font-size:0.8rem" onclick="removeCustomerAvatar()">Remove picture</button>
+                  </div>
+                </div>
+              </div>
+              <button type="submit" class="btn btn-gold">Save Changes</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Account info + password -->
+        <div style="display:flex;flex-direction:column;gap:1rem">
+          <div class="admin-block">
+            <h2>Account Info</h2>
+            <div style="display:grid;gap:0.5rem">
+              <div class="metric"><span>Username</span><strong id="prof-username">—</strong></div>
+              <div class="metric"><span>Email</span><strong id="prof-email">—</strong></div>
+              <div class="metric"><span>Member Since</span><strong id="prof-since">—</strong></div>
+            </div>
+          </div>
+
+          <div class="admin-block">
+            <h2>Change Password</h2>
+            <form id="password-form">
+              <div style="display:grid;gap:0.6rem">
+                <input id="pw-old"     class="form-input" type="password" placeholder="Current password" required />
+                <input id="pw-new"     class="form-input" type="password" placeholder="New password" required />
+                <input id="pw-confirm" class="form-input" type="password" placeholder="Confirm new password" required />
+                <button type="submit" class="btn btn-dark">Update Password</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Addresses -->
+      <div class="admin-block" style="margin-top:1rem">
+        <div class="admin-heading" style="margin-bottom:0.75rem">
+          <h2 style="margin:0">Saved Addresses</h2>
+          <button class="btn btn-dark" onclick="showAddressForm()">+ Add Address</button>
+        </div>
+
+        <div id="address-form-wrap" style="display:none;margin-bottom:1rem">
+          <form id="address-form">
+            <input type="hidden" id="addr-id" />
+            <div class="form-row">
+              <input id="addr-label"     class="form-input" placeholder='Label (e.g. Home)' />
+              <select id="addr-type"     class="form-input">
+                <option value="shipping">Shipping</option>
+                <option value="billing">Billing</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <input id="addr-full-name" class="form-input" placeholder="Full name" required />
+              <input id="addr-phone"     class="form-input" placeholder="Phone" />
+            </div>
+            <input id="addr-line1"   class="form-input" placeholder="Address line 1" required style="margin-bottom:0.5rem" />
+            <input id="addr-line2"   class="form-input" placeholder="Address line 2 (optional)" style="margin-bottom:0.5rem" />
+            <div class="form-row">
+              <input id="addr-city"     class="form-input" placeholder="City" required />
+              <input id="addr-state"    class="form-input" placeholder="State / County" />
+              <input id="addr-postcode" class="form-input" placeholder="Postcode" required />
+              <input id="addr-country"  class="form-input" placeholder="Country" value="United Kingdom" />
+            </div>
+            <label style="display:flex;align-items:center;gap:0.4rem;color:var(--muted);margin:0.5rem 0">
+              <input type="checkbox" id="addr-default" /> Set as default
+            </label>
+            <div class="form-row">
+              <button type="submit" class="btn btn-gold">Save Address</button>
+              <button type="button" class="btn btn-dark" onclick="hideAddressForm()">Cancel</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="addresses-list"><p style="color:var(--muted)">Loading…</p></div>
+      </div>
+
+      <!-- My Reviews -->
+      <div class="admin-block" style="margin-top:1rem">
+        <h2>My Reviews</h2>
+        <div id="reviews-list"><p style="color:var(--muted)">Loading…</p></div>
+      </div>
+
+      <!-- Danger zone -->
+      <div class="admin-block danger-zone" style="margin-top:1rem">
+        <h2 style="color:#ff6b6b">⚠️ Danger Zone</h2>
+        <p style="color:var(--muted);font-size:0.9rem;margin-bottom:0.75rem">
+          Deleting your account is permanent and cannot be undone.
+        </p>
+        <button class="btn" style="background:#6b2737;color:#ffb3c1;border:1px solid #6b2737" onclick="confirmDeleteAccount()">
+          Delete My Account
+        </button>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Order detail modal -->
+<div id="order-modal" class="modal-overlay" style="display:none" onclick="closeOrderModal(event)">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="modal-order-title">Order Details</h2>
+      <button class="btn btn-dark" onclick="closeOrderModal()">✕</button>
+    </div>
+    <div id="modal-order-body" style="padding:1rem;overflow-y:auto;max-height:60vh"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="{% static 'js/customer_dashboard.js' %}"></script>
+{% endblock %}

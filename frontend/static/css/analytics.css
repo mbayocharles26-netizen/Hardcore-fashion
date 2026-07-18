@@ -1,0 +1,133 @@
+.analytics-page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 3rem;
+}
+
+.analytics-header,
+.analytics-actions,
+.analytics-card-header {
+  display: flex;
+  align-items: center;
+}
+
+.analytics-header {
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.analytics-header h1 {
+  margin: .15rem 0 .45rem;
+  font-size: clamp(1.7rem, 3vw, 2.4rem);
+}
+
+.analytics-header p:not(.analytics-kicker) {
+  color: var(--muted);
+  margin: 0;
+}
+
+.analytics-kicker {
+  margin: 0;
+  color: var(--gold);
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+
+.analytics-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: .75rem;
+}
+
+.analytics-updated,
+.analytics-loading,
+.analytics-empty,
+.analytics-notice {
+  color: var(--muted);
+  font-size: .875rem;
+}
+
+.analytics-notice {
+  min-height: 1.25rem;
+  margin: 0 0 1rem;
+}
+
+.analytics-notice.is-error {
+  color: #ffb3c1;
+}
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.analytics-card {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  padding: 1.1rem;
+}
+
+.analytics-card-header {
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 2.75rem;
+  margin-bottom: 1rem;
+}
+
+.analytics-card-header h2 {
+  margin: 0 0 .2rem;
+  font-size: 1.05rem;
+}
+
+.analytics-card-header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: .82rem;
+}
+
+.analytics-loading {
+  white-space: nowrap;
+}
+
+.analytics-chart {
+  position: relative;
+  min-height: 290px;
+}
+
+.analytics-chart canvas {
+  max-width: 100%;
+}
+
+.analytics-empty {
+  margin: 1rem 0 0;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .analytics-page {
+    padding: 1.5rem 1rem 2.5rem;
+  }
+
+  .analytics-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .analytics-actions {
+    justify-content: flex-start;
+  }
+
+  .analytics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .analytics-chart {
+    min-height: 250px;
+  }
+}

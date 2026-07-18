@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Shop — Hardcore Fashion Store{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/products.css' %}" />{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>The <span>Shop</span></h1>
+    <span class="result-count">{{ total_count }} product{{ total_count|pluralize }} found</span>
+  </div>
+</div>
+
+<div class="toolbar">
+  <div class="toolbar-inner">
+    <form class="search-form" method="GET" action="/products/">
+      {% if active_category %}<input type="hidden" name="category" value="{{ active_category }}" />{% endif %}
+      <div style="position:relative;flex:1">
+        <input
+          type="text"
+          name="search"
+          id="search-input"
+          value="{{ search }}"
+          placeholder="Search products, categories…"
+          autocomplete="off"
+        />
+        <ul id="search-suggestions" style="
+          display:none;position:absolute;top:100%;left:0;right:0;z-index:999;
+          background:#111;border:1px solid rgba(201,168,76,0.35);border-radius:0 0 8px 8px;
+          list-style:none;margin:0;padding:0;max-height:320px;overflow-y:auto
+        "></ul>
+      </div>
+      <button type="submit">🔍</button>
+    </form>
+    <select class="sort-select" onchange="applySort(this.value)">
+      <option value="" {% if not sort %}selected{% endif %}>Sort: Latest</option>
+      <option value="price_asc" {% if sort == 'price_asc' %}selected{% endif %}>Price: Low → High</option>
+      <option value="price_desc" {% if sort == 'price_desc' %}selected{% endif %}>Price: High → Low</option>
+      <option value="name" {% if sort == 'name' %}selected{% endif %}>Name: A → Z</option>
+    </select>
+  </div>
+</div>
+
+<div class="shop-layout">
+
+  <!-- Sidebar: categories -->
+  <aside class="sidebar">
+    <div class="sidebar-title">Categories</div>
+    <ul class="category-list">
+      <li>
+        <a href="/products/{% if search %}?search={{ search }}{% endif %}"
+           class="{% if not active_category %}active{% endif %}">
+          All Products
+          <span class="cat-count">{{ products|length }}</span>
+        </a>
+      </li>
+      {% for cat in categories %}
+      <li>
+        <a href="/products/?category={{ cat.slug }}{% if search %}&search={{ search }}{% endif %}"
+           class="{% if active_category == cat.slug %}active{% endif %}">
+          {{ cat.name }}
+          <span class="cat-count">{{ cat.products.count }}</span>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </aside>
+
+  <!-- Main: product grid -->
+  <div>
+    {% if search %}
+    <div class="search-highlight">
+      <span>Results for "<strong>{{ search }}</strong>"</span>
+      <a href="/products/{% if active_category %}?category={{ active_category }}{% endif %}">✕ Clear search</a>
+    </div>
+    {% endif %}
+
+    <div class="products-grid">
+      {% for product in products %}
+      <div class="product-card">
+        <div class="card-image-wrap">
+          {% if product.image %}
+            <img src="{{ product.image.url }}" alt="{{ product.name }}" loading="lazy" />
+          {% else %}
+            <div class="product-placeholder" aria-label="{{ product.name }}"><span>HF</span></div>
+          {% endif %}
+
+          <div class="card-badge-wrap">
+            {% if product.is_featured %}<span class="badge-featured">Featured</span>{% endif %}
+            {% if not product.in_stock %}<span class="badge-out">Sold Out</span>{% endif %}
+          </div>
+
+          <div class="quick-add">
+            <button
+              class="btn btn-gold"
+              style="flex:1;padding:0.5rem"
+              onclick="addToCart({{ product.id }})"
+              {% if not product.in_stock %}disabled{% endif %}>
+              Quick Add
+            </button>
+            <a href="/products/{{ product.slug }}/" class="btn btn-dark" style="padding:0.5rem 0.75rem">View</a>
+          </div>
+        </div>
+
+        <a href="/products/{{ product.slug }}/" class="card-body" style="text-decoration:none;color:inherit">
+          <div class="card-category">{{ product.category.name }}</div>
+          <div class="card-name">{{ product.name }}</div>
+          <div class="card-footer">
+            <span class="card-price">RWF {{ product.price|floatformat:0 }}</span>
+            <span class="stock-indicator">
+              {% if product.stock == 0 %}
+                <span class="stock-dot out"></span> Out of stock
+              {% elif product.stock <= 5 %}
+                <span class="stock-dot low"></span> Only {{ product.stock }} left
+              {% else %}
+                <span class="stock-dot in"></span> In stock
+              {% endif %}
+            </span>
+          </div>
+        </a>
+      </div>
+      {% empty %}
+      <div class="no-results">
+        <div class="icon">🔍</div>
+        <h3>No products found</h3>
+        <p>Try a different search or <a href="/products/">browse all products</a>.</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function applySort(value) {
+  const url = new URL(window.location.href);
+  if (value) url.searchParams.set('sort', value);
+  else url.searchParams.delete('sort');
+  window.location.href = url.toString();
+}
+
+// ── Live search autocomplete ──────────────────────────────────────────────────
+(function () {
+  const input = document.getElementById('search-input');
+  const list  = document.getElementById('search-suggestions');
+  if (!input || !list) return;
+
+  let debounceTimer = null;
+  let lastQuery = '';
+
+  function hideSuggestions() {
+    list.style.display = 'none';
+    list.innerHTML = '';
+  }
+
+  function showSuggestions(products) {
+    list.innerHTML = '';
+    if (!products.length) { hideSuggestions(); return; }
+
+    products.forEach(p => {
+      const li = document.createElement('li');
+      li.style.cssText = 'display:flex;align-items:center;gap:0.75rem;padding:0.6rem 0.9rem;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.06);color:#fff';
+
+      li.innerHTML = p.image
+        ? `<img src="${esc(p.image)}" style="width:38px;height:38px;object-fit:cover;border-radius:4px;flex-shrink:0" />`
+        : `<div style="width:38px;height:38px;background:#222;border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:#666">HF</div>`;
+
+      const info = document.createElement('div');
+      info.style.cssText = 'flex:1;min-width:0';
+      info.innerHTML = `
+        <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</div>
+        <div style="font-size:0.78rem;color:#c9a84c">RWF ${Number(p.price).toLocaleString()}</div>
+      `;
+      li.appendChild(info);
+
+      li.addEventListener('mousedown', e => {
+        e.preventDefault();
+        window.location.href = `/products/${esc(p.slug)}/`;
+      });
+
+      li.addEventListener('mouseenter', () => li.style.background = 'rgba(201,168,76,0.12)');
+      li.addEventListener('mouseleave', () => li.style.background = '');
+
+      list.appendChild(li);
+    });
+
+    // "See all results" footer
+    const footer = document.createElement('li');
+    footer.style.cssText = 'padding:0.55rem 0.9rem;text-align:center;color:#c9a84c;font-size:0.85rem;cursor:pointer;font-weight:600';
+    footer.textContent = `See all results for "${esc(input.value.trim())}"`;
+    footer.addEventListener('mousedown', e => { e.preventDefault(); input.form.submit(); });
+    list.appendChild(footer);
+
+    list.style.display = 'block';
+  }
+
+  async function fetchSuggestions(query) {
+    if (query.length < 2) { hideSuggestions(); return; }
+    if (query === lastQuery) return;
+    lastQuery = query;
+    try {
+      const res = await fetch(`/api/products/?search=${encodeURIComponent(query)}&limit=6`);
+      if (!res.ok) return;
+      const data = await res.json();
+      // API may return array directly or {results: []}
+      const products = Array.isArray(data) ? data : (data.results || []);
+      if (input.value.trim() === query) showSuggestions(products);
+    } catch { /* fail silently */ }
+  }
+
+  input.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    const q = input.value.trim();
+    if (!q) { hideSuggestions(); lastQuery = ''; return; }
+    debounceTimer = setTimeout(() => fetchSuggestions(q), 250);
+  });
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape') hideSuggestions();
+  });
+
+  document.addEventListener('click', e => {
+    if (!input.contains(e.target) && !list.contains(e.target)) hideSuggestions();
+  });
+}());
+</script>
+{% endblock %}

@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Checkout — Hardcore Fashion Store{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'css/checkout.css' %}" />
+{% endblock %}
+
+{% block content %}
+<div class="section">
+  <h2 class="section-title">Checkout</h2>
+
+  <div id="checkout-auth-error" style="display:none">
+    <div class="empty-state">
+      <div class="icon">🔒</div>
+      <h3>Please log in to checkout</h3>
+      <a href="/login/" class="btn btn-gold" style="margin-top:1rem">Login</a>
+    </div>
+  </div>
+
+  <div id="checkout-empty" style="display:none">
+    <div class="empty-state">
+      <div class="icon">🛒</div>
+      <h3>Your cart is empty</h3>
+      <a href="/products/" class="btn btn-gold" style="margin-top:1rem">Shop Now</a>
+    </div>
+  </div>
+
+  <div id="checkout-body" style="display:none">
+    <div class="checkout-grid">
+      <div class="checkout-form-card">
+        <h2>Customer Information</h2>
+        <form id="checkout-form">
+          <div class="form-group">
+            <label>Full Name</label>
+            <input type="text" id="customer_name" required placeholder="John Doe" />
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="customer_email" required placeholder="you@example.com" />
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="text" id="customer_phone" placeholder="+250 7XX XXX XXX" />
+          </div>
+          <div class="form-group">
+            <label>Delivery Address</label>
+            <textarea id="customer_address" rows="3" required placeholder="123 Street, City, Postcode"></textarea>
+          </div>
+          <button id="checkout-btn" type="button" class="btn btn-gold" style="width:100%;margin-top:1rem;padding:0.9rem">
+            Pay with Flutterwave — <span id="checkout-total">RWF 0</span>
+          </button>
+        </form>
+      </div>
+
+      <div class="order-summary-card">
+        <h3>Order Summary</h3>
+        <table class="cart-table">
+          <thead>
+            <tr><th>Product</th><th>Qty</th><th>Subtotal</th></tr>
+          </thead>
+          <tbody id="checkout-items"></tbody>
+        </table>
+        <div class="summary-row total" style="margin-top:1rem">
+          <span>Total</span>
+          <span id="checkout-total-summary">RWF 0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(async function () {
+  if (!isLoggedIn()) {
+    document.getElementById('checkout-auth-error').style.display = 'block';
+    return;
+  }
+
+  const res = await apiFetch('/cart/');
+  if (!res.ok) {
+    document.getElementById('checkout-auth-error').style.display = 'block';
+    return;
+  }
+
+  const data = await res.json();
+  const items = data.items || [];
+
+  if (!items.length) {
+    document.getElementById('checkout-empty').style.display = 'block';
+    return;
+  }
+
+  const total = items.reduce((s, i) => s + parseFloat(i.subtotal), 0);
+  const fmt = v => `RWF ${parseFloat(v).toFixed(0)}`;
+
+  document.getElementById('checkout-items').innerHTML = items.map(i => `
+    <tr>
+      <td>${esc(i.product_name)}</td>
+      <td>${esc(i.quantity)}</td>
+      <td>${fmt(i.subtotal)}</td>
+    </tr>`).join('');
+
+  document.getElementById('checkout-total').textContent = fmt(total);
+  document.getElementById('checkout-total-summary').textContent = fmt(total);
+  document.getElementById('checkout-body').style.display = 'block';
+
+  document.getElementById('checkout-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('checkout-btn');
+    const name = document.getElementById('customer_name').value.trim();
+    const email = document.getElementById('customer_email').value.trim();
+    const phone = document.getElementById('customer_phone').value.trim();
+    const address = document.getElementById('customer_address').value.trim();
+
+    if (!name || !email || !address) {
+      showToast('Please fill in all required fields.');
+      return;
+    }
+
+    btn.textContent = 'Processing…';
+    btn.disabled = true;
+
+    const res = await apiFetch('/flutterwave/initialize/', {
+      method: 'POST',
+      body: JSON.stringify({
+        customer_name: name,
+        customer_email: email,
+        customer_phone: phone,
+        customer_address: address,
+      }),
+    });
+
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      showToast(payload?.error || 'Payment initialization failed.');
+      btn.textContent = `Pay with Flutterwave — ${fmt(total)}`;
+      btn.disabled = false;
+      return;
+    }
+
+    if (payload.payment_link) {
+      window.location.href = payload.payment_link;
+    } else {
+      showToast('No payment link returned.');
+      btn.textContent = `Pay with Flutterwave — ${fmt(total)}`;
+      btn.disabled = false;
+    }
+  });
+})();
+</script>
+{% endblock %}
