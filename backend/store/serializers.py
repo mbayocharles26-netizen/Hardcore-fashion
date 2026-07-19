@@ -95,10 +95,11 @@ class CartItemSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
     product_price = serializers.DecimalField(source='product.price', max_digits=10, decimal_places=2, read_only=True)
     subtotal = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    shipping_days = serializers.IntegerField(source='product.shipping_days', read_only=True)
 
     class Meta:
         model = CartItem
-        fields = ['id', 'product', 'product_name', 'product_price', 'quantity', 'subtotal']
+        fields = ['id', 'product', 'product_name', 'product_price', 'quantity', 'subtotal', 'shipping_days']
 
 
 class CartSerializer(serializers.ModelSerializer):

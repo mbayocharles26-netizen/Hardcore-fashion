@@ -317,6 +317,31 @@ async function loadWallet() {
   }
 }
 
+// ── Search History ───────────────────────────────────────────────────────────
+function loadSearchHistory() {
+  const el = document.getElementById('search-history-list');
+  if (!el) return;
+  const raw = localStorage.getItem('hfs_search_history');
+  const history = raw ? JSON.parse(raw) : [];
+  if (!history.length) {
+    el.innerHTML = '<p style="color:var(--muted)">No searches yet.</p>';
+    return;
+  }
+  el.innerHTML = history.map((entry, i) => `
+    <div class="admin-block" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;padding:0.6rem 1rem">
+      <a href="/products/?search=${encodeURIComponent(entry.q)}" style="color:var(--gold);text-decoration:none;font-weight:500">
+        🔍 ${esc(entry.q)}
+      </a>
+      <span style="color:var(--muted);font-size:0.8rem">${esc(new Date(entry.ts).toLocaleString())}</span>
+    </div>`).join('');
+}
+
+function clearSearchHistory() {
+  if (!confirm('Clear all search history?')) return;
+  localStorage.removeItem('hfs_search_history');
+  loadSearchHistory();
+}
+
 // ── Notifications ─────────────────────────────────────────────────────────────
 async function loadNotifications() {
   const el = document.getElementById('customer-notifications-list');
@@ -517,6 +542,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (tab === 'wishlist')      loadWishlist();
       if (tab === 'wallet')        loadWallet();
       if (tab === 'notifications') loadNotifications();
+      if (tab === 'search-history') loadSearchHistory();
       if (tab === 'profile')       { loadProfile(); loadAddresses(); loadReviews(); }
     });
   });

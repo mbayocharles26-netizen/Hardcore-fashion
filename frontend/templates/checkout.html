@@ -65,6 +65,10 @@
           <span>Total</span>
           <span id="checkout-total-summary">RWF 0</span>
         </div>
+        <div class="summary-row" style="margin-top:0.5rem">
+          <span>Estimated Delivery</span>
+          <span id="checkout-delivery">—</span>
+        </div>
       </div>
     </div>
   </div>
@@ -94,6 +98,7 @@
   }
 
   const total = items.reduce((s, i) => s + parseFloat(i.subtotal), 0);
+  const maxDays = items.reduce((m, i) => Math.max(m, i.shipping_days || 3), 1);
   const fmt = v => `RWF ${parseFloat(v).toFixed(0)}`;
 
   document.getElementById('checkout-items').innerHTML = items.map(i => `
@@ -105,6 +110,7 @@
 
   document.getElementById('checkout-total').textContent = fmt(total);
   document.getElementById('checkout-total-summary').textContent = fmt(total);
+  document.getElementById('checkout-delivery').textContent = `${maxDays}–${maxDays + 2} days`;
   document.getElementById('checkout-body').style.display = 'block';
 
   document.getElementById('checkout-btn').addEventListener('click', async () => {

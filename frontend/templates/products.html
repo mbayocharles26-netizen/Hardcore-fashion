@@ -142,6 +142,24 @@ function applySort(value) {
   window.location.href = url.toString();
 }
 
+// ── Search history helpers ────────────────────────────────────────────────────
+function saveSearchQuery(q) {
+  if (!q || q.length < 2) return;
+  const raw = localStorage.getItem('hfs_search_history');
+  const history = raw ? JSON.parse(raw) : [];
+  // Remove duplicate then prepend
+  const filtered = history.filter(e => e.q.toLowerCase() !== q.toLowerCase());
+  filtered.unshift({ q, ts: new Date().toISOString() });
+  localStorage.setItem('hfs_search_history', JSON.stringify(filtered.slice(0, 30)));
+}
+
+// Save current search term on page load if it came from a form submit
+(function () {
+  const params = new URLSearchParams(window.location.search);
+  const q = params.get('search');
+  if (q) saveSearchQuery(q);
+}());
+
 // ── Live search autocomplete ──────────────────────────────────────────────────
 (function () {
   const input = document.getElementById('search-input');
@@ -178,6 +196,7 @@ function applySort(value) {
 
       li.addEventListener('mousedown', e => {
         e.preventDefault();
+        saveSearchQuery(input.value.trim());
         window.location.href = `/products/${esc(p.slug)}/`;
       });
 

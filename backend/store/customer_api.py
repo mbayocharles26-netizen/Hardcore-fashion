@@ -151,15 +151,15 @@ class CustomerDashboardView(APIView):
         wishlist_count = WishlistItem.objects.filter(user=user).count()
 
         return Response({
-            'metrics': {
-                'total_orders':    orders.count(),
-                'active_orders':   active_orders,
-                'total_spend':     float(total_spend),
-                'loyalty_points':  profile.loyalty_points,
-                'wishlist_count':  wishlist_count,
-            },
-            'recent_orders': CustomerOrderSerializer(recent_orders, many=True).data,
-            'monthly_spend': [
+            'username':       user.username,
+            'first_name':     user.first_name,
+            'total_orders':   orders.count(),
+            'pending_orders': active_orders,
+            'total_spent':    float(total_spend),
+            'loyalty_points': profile.loyalty_points,
+            'wishlist_count': wishlist_count,
+            'recent_orders':  CustomerOrderSerializer(recent_orders, many=True).data,
+            'spend_trend': [
                 {'label': r['month'].strftime('%b %Y'), 'total': float(r['total'] or 0)}
                 for r in monthly_spend
             ],

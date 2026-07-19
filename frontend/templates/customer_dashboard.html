@@ -24,6 +24,7 @@
     <button class="admin-tab" data-tab="wishlist">❤️ Wishlist <span id="wishlist-badge" class="badge badge-gold" style="display:none"></span></button>
     <button class="admin-tab" data-tab="wallet">💳 Wallet &amp; Points</button>
     <button class="admin-tab" data-tab="notifications">🔔 Notifications</button>
+    <button class="admin-tab" data-tab="search-history">🔍 Search History</button>
     <button class="admin-tab" data-tab="profile">⚙️ Profile</button>
     <button class="admin-tab admin-theme-toggle" id="customer-theme-btn" onclick="toggleTheme()" style="margin-top:auto">🌙 Dark Mode</button>
   </nav>
@@ -182,6 +183,15 @@
         <button class="btn btn-dark" onclick="loadNotifications()">🔄 Refresh</button>
       </div>
       <div id="customer-notifications-list" style="color:var(--muted)">Loading…</div>
+    </section>
+
+    <!-- ── Search History ──────────────────────────────────────────────────── -->
+    <section id="tab-search-history" class="admin-view">
+      <div class="admin-heading">
+        <h1>Search History</h1>
+        <button class="btn btn-dark" onclick="clearSearchHistory()">🗑️ Clear All</button>
+      </div>
+      <div id="search-history-list"><p style="color:var(--muted)">Loading…</p></div>
     </section>
 
     <!-- ── Profile ────────────────────────────────────────────────────────── -->

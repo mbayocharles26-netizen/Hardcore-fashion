@@ -105,7 +105,7 @@ python manage.py runserver
 
 ## Live Deployment
 
-> **URL:** `https://hardcore-fashion.onrender.com` *(update after Render deployment)*
+> **URL:** https://fashion.onrender.com
 
 ---
 

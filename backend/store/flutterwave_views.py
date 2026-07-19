@@ -1,6 +1,5 @@
 import json
 
-from django.conf import settings
 from django.http import HttpResponse
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
@@ -9,10 +8,11 @@ from rest_framework.decorators import api_view, permission_classes, throttle_cla
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .models import Cart, Order, OrderItem, Product, Shipment
+from .models import Cart, Order, OrderItem, Shipment
 from .serializers import OrderSerializer
 from .flutterwave import create_payment, verify_webhook_signature
 from .throttles import PaymentRateThrottle
+from .email_service import send_tracking_email
 
 
 @api_view(['POST'])
@@ -31,7 +31,6 @@ def flutterwave_initialize(request):
         'phone_number': body.get('customer_phone', ''),
     }
 
-    # Create pending order
     total = sum(i.product.price * i.quantity for i in items)
     order = Order.objects.create(
         user=request.user,
@@ -57,7 +56,6 @@ def flutterwave_initialize(request):
     reference = f'order_{order.id}_{get_random_string(6).lower()}'
     tx_ref = reference
 
-    # Always return customers to their own confirmation page after payment.
     redirect_url = request.build_absolute_uri(
         reverse('order_confirmation', kwargs={'order_id': order.id})
     )
@@ -70,7 +68,6 @@ def flutterwave_initialize(request):
         redirect_url=redirect_url,
     )
 
-    # Flutterwave returns a link in 'data.link' for hosted payment
     link = payment_payload.get('data', {}).get('link')
     return Response({'order': OrderSerializer(order).data, 'payment_link': link, 'tx_ref': tx_ref})
 
@@ -81,8 +78,10 @@ def flutterwave_initialize(request):
 def flutterwave_webhook(request):
     raw = request.body
 
-    # Many Flutterwave webhooks include X-Signature header
-    received_signature = request.META.get('HTTP_X_SIGNATURE') or request.META.get('HTTP_X_FLW_SIGNATURE') or ''
+    received_signature = (
+        request.META.get('HTTP_X_SIGNATURE') or
+        request.META.get('HTTP_X_FLW_SIGNATURE') or ''
+    )
 
     if not verify_webhook_signature(raw, received_signature):
         return HttpResponse('invalid signature', status=400)
@@ -96,7 +95,6 @@ def flutterwave_webhook(request):
     tx_ref = data.get('tx_ref') or ''
     status = data.get('status') or ''
 
-    # Our reference includes order id as order_<id>_...
     order_id = None
     if tx_ref.startswith('order_'):
         try:
@@ -112,12 +110,21 @@ def flutterwave_webhook(request):
     except Order.DoesNotExist:
         return HttpResponse('order not found', status=200)
 
-    # Mark paid on successful status
     if status in ['successful', 'paid']:
         order.status = 'processing'
         order.flutterwave_transaction_id = data.get('transaction_id') or ''
         order.save(update_fields=['status', 'flutterwave_transaction_id'])
-        Shipment.objects.get_or_create(order=order)
+        shipment, created = Shipment.objects.get_or_create(order=order)
+        if created and order.customer_email:
+            track_url = request.build_absolute_uri(
+                f'/track-shipment/?code={shipment.tracking_number}'
+            )
+            send_tracking_email(
+                to_email=order.customer_email,
+                customer_name=order.customer_name or 'Customer',
+                order_id=order.id,
+                tracking_number=shipment.tracking_number,
+                track_url=track_url,
+            )
 
     return HttpResponse('ok', status=200)
-
