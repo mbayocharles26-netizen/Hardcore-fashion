@@ -37,8 +37,30 @@
 <main>{% block content %}{% endblock %}</main>
 
 <footer>
-  <div class="footer-logo">⚡ HARDCORE FASHION STORE</div>
-  <p>&copy; 2024 Hardcore Fashion Store. All rights reserved.</p>
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <div class="footer-logo">⚡ HARDCORE FASHION</div>
+      <p>Premium streetwear &amp; fashion for those who dare to stand out.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Shop</h4>
+      <a href="/products/">All Products</a>
+      <a href="/products/?category=new">New Arrivals</a>
+      <a href="/products/?featured=true">Featured</a>
+      <a href="/cart/">Cart</a>
+    </div>
+    <div class="footer-col">
+      <h4>Account</h4>
+      <a href="/login/">Login</a>
+      <a href="/register/">Register</a>
+      <a href="/customer-dashboard/">My Orders</a>
+      <a href="/track-shipment/">Track Order</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>&copy; 2024 Hardcore Fashion Store. All rights reserved.</span>
+    <span>Made with ⚡ for bold fashion</span>
+  </div>
 </footer>
 
 <div id="toast" class="toast"></div>
