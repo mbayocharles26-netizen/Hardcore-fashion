@@ -54,14 +54,18 @@ TEMPLATES = [{
 import dj_database_url
 _db_url = config('DATABASE_URL', default='')
 if _db_url:
-    DATABASES = {'default': dj_database_url.parse(_db_url, conn_max_age=600, ssl_require=True)}
+    _db_config = dj_database_url.parse(_db_url, conn_max_age=600)
+    # Only require SSL for external/production connections, not internal ones
+    if not any(h in _db_url for h in ['localhost', '127.0.0.1', 'internal']):
+        _db_config.setdefault('OPTIONS', {})['sslmode'] = 'require'
+    DATABASES = {'default': _db_config}
 else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
             'NAME': config('DB_NAME', default='hardcore_fashion'),
             'USER': config('DB_USER', default='postgres'),
-            'PASSWORD': config('DB_PASSWORD', default='NewPassword123'),
+            'PASSWORD': config('DB_PASSWORD', default=''),
             'HOST': config('DB_HOST', default='127.0.0.1'),
             'PORT': config('DB_PORT', default='5432'),
         }
