@@ -1,0 +1,8 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "python manage.py migrate --no-input && daphne -b 0.0.0.0 -p $PORT ecommerce.asgi:application"
+healthcheckPath = "/"
+restartPolicyType = "on_failure"
