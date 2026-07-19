@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: hardcore-fashion
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    startCommand: python manage.py migrate --no-input && daphne -b 0.0.0.0 -p $PORT ecommerce.asgi:application
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        value: hardcore-fashion.onrender.com
+      - key: OTP_HASH_SECRET
+        generateValue: true
+      - key: DB_HOST
+        fromDatabase:
+          name: hardcore-fashion-db
+          property: host
+      - key: DB_NAME
+        fromDatabase:
+          name: hardcore-fashion-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: hardcore-fashion-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: hardcore-fashion-db
+          property: password
+      - key: DB_PORT
+        fromDatabase:
+          name: hardcore-fashion-db
+          property: port
+
+databases:
+  - name: hardcore-fashion-db
+    plan: free
