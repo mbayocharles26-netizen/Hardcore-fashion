@@ -3,13 +3,7 @@
 const money = v => `RWF ${Number(v || 0).toLocaleString('en-RW', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
 function customerApiFetch(path, options = {}) {
-  const token = getToken();
-  const headers = { ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  if (!(options.body instanceof FormData)) headers['Content-Type'] = 'application/json';
-  return fetch(`/api/customer/${path}`, {
-    ...options,
-    headers: { ...headers, ...(options.headers || {}) },
-  });
+  return apiFetch('/customer/' + path, options);
 }
 
 // ── Tab switching ─────────────────────────────────────────────────────────────
@@ -523,13 +517,18 @@ async function loadReviews() {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-  const panel  = document.getElementById('customer-panel');
+  const panel   = document.getElementById('customer-panel');
   const warning = document.getElementById('customer-auth-warning');
 
+  // Token present but may be expired — try a refresh before giving up
   if (!isLoggedIn()) {
-    if (warning) warning.style.display = '';
-    return;
+    const refreshed = await refreshAccessToken();
+    if (!refreshed) {
+      if (warning) warning.style.display = '';
+      return;
+    }
   }
+
   if (panel) panel.style.display = '';
 
   // Tab click handlers
@@ -537,13 +536,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     btn.addEventListener('click', () => {
       const tab = btn.dataset.tab;
       switchTab(tab);
-      if (tab === 'orders')        loadOrders();
-      if (tab === 'refunds')       loadCustomerRefunds();
-      if (tab === 'wishlist')      loadWishlist();
-      if (tab === 'wallet')        loadWallet();
-      if (tab === 'notifications') loadNotifications();
+      if (tab === 'orders')         loadOrders();
+      if (tab === 'refunds')        loadCustomerRefunds();
+      if (tab === 'wishlist')       loadWishlist();
+      if (tab === 'wallet')         loadWallet();
+      if (tab === 'notifications')  loadNotifications();
       if (tab === 'search-history') loadSearchHistory();
-      if (tab === 'profile')       { loadProfile(); loadAddresses(); loadReviews(); }
+      if (tab === 'profile')        { loadProfile(); loadAddresses(); loadReviews(); }
     });
   });
 

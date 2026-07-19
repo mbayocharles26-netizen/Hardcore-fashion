@@ -110,7 +110,7 @@
 
   document.getElementById('checkout-total').textContent = fmt(total);
   document.getElementById('checkout-total-summary').textContent = fmt(total);
-  document.getElementById('checkout-delivery').textContent = `${maxDays}–${maxDays + 2} days`;
+  document.getElementById('checkout-delivery').textContent = maxDays + '–' + (maxDays + 2) + ' days';
   document.getElementById('checkout-body').style.display = 'block';
 
   document.getElementById('checkout-btn').addEventListener('click', async () => {
