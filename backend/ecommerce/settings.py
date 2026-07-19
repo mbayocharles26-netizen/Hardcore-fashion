@@ -2,8 +2,15 @@ from decouple import Config, RepositoryEnv, AutoConfig
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-ENV_PATH = BASE_DIR / '.env'
-config = Config(RepositoryEnv(str(ENV_PATH))) if ENV_PATH.exists() else AutoConfig()
+# On Render, rootDir is backend/ so the project root IS the backend dir
+_BACKEND_DIR = Path(__file__).resolve().parent.parent
+_FRONTEND_STATIC = _BACKEND_DIR.parent / 'frontend' / 'static'
+_FRONTEND_TEMPLATES = _BACKEND_DIR.parent / 'frontend' / 'templates'
+# Look for .env next to manage.py (backend/) first, then project root
+_ENV_PATH = _BACKEND_DIR / '.env'
+if not _ENV_PATH.exists():
+    _ENV_PATH = BASE_DIR / '.env'
+config = Config(RepositoryEnv(str(_ENV_PATH))) if _ENV_PATH.exists() else AutoConfig()
 
 import os
 SECRET_KEY = os.environ.get('SECRET_KEY', config('SECRET_KEY', default='django-insecure-change-me-in-production'))
@@ -44,7 +51,7 @@ ROOT_URLCONF = 'ecommerce.urls'
 
 TEMPLATES = [{
     'BACKEND': 'django.template.backends.django.DjangoTemplates',
-    'DIRS': [BASE_DIR / 'frontend' / 'templates'],
+    'DIRS': [_FRONTEND_TEMPLATES],
     'APP_DIRS': True,
     'OPTIONS': {
         'context_processors': [
@@ -99,12 +106,12 @@ REST_FRAMEWORK = {
 }
 
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'frontend' / 'static']
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_DIRS = [d for d in [_FRONTEND_STATIC] if d.exists()]
+STATIC_ROOT = _BACKEND_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = _BACKEND_DIR / 'media'
 
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
