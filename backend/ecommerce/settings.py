@@ -5,9 +5,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 ENV_PATH = BASE_DIR / '.env'
 config = Config(RepositoryEnv(str(ENV_PATH))) if ENV_PATH.exists() else AutoConfig()
 
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-in-production')
-DEBUG = config('DJANGO_DEBUG', default=True, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*').split(',')
+import os
+SECRET_KEY = os.environ.get('SECRET_KEY', config('SECRET_KEY', default='django-insecure-change-me-in-production'))
+DEBUG = os.environ.get('DJANGO_DEBUG', str(config('DJANGO_DEBUG', default=True))).lower() not in ('false', '0', 'no')
+_allowed = os.environ.get('ALLOWED_HOSTS', config('ALLOWED_HOSTS', default='*'))
+ALLOWED_HOSTS = [h.strip() for h in _allowed.split(',')]
 if 'hardcore-fashion.onrender.com' not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append('hardcore-fashion.onrender.com')
 
@@ -54,7 +56,7 @@ TEMPLATES = [{
 }]
 
 import dj_database_url
-_db_url = config('DATABASE_URL', default='')
+_db_url = os.environ.get('DATABASE_URL', config('DATABASE_URL', default=''))
 if _db_url:
     _db_config = dj_database_url.parse(_db_url, conn_max_age=600)
     # Only require SSL for external/production connections, not internal ones
