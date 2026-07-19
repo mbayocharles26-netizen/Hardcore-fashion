@@ -8,6 +8,8 @@ config = Config(RepositoryEnv(str(ENV_PATH))) if ENV_PATH.exists() else AutoConf
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-in-production')
 DEBUG = config('DJANGO_DEBUG', default=True, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*').split(',')
+if 'hardcore-fashion.onrender.com' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('hardcore-fashion.onrender.com')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
